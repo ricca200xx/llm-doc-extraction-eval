@@ -16,11 +16,16 @@ from collections.abc import Iterable
 from pathlib import Path
 
 from .data import Doc
-from .prompts import build_messages
+from .prompts import build_messages, prompt_fingerprint
 from .repair import repair_json
 from .schema import Receipt
 
 RAW_DIR = Path("results/raw")
+TEMPERATURE = 0
+RETRIES = 2  # LiteLLM retries on transient provider errors (needs tenacity)
+TIMEOUT_S = 300
+MAX_CONSECUTIVE_ERRORS = 3  # a wrong model name or key fails every call: stop early
+_NO_RESULT = {"raw": "", "finish_reason": None, "completion_tokens": None}
 
 
 def run_path(model: str, prompt: str) -> Path:
@@ -39,11 +44,13 @@ def _call(model: str, messages: list[dict], max_tokens: int) -> dict:
     resp = litellm.completion(
         model=model,
         messages=messages,
-        temperature=0,
+        temperature=TEMPERATURE,
         max_tokens=max_tokens,
-        num_retries=2,
-        timeout=300,
+        num_retries=RETRIES,
+        timeout=TIMEOUT_S,
     )
+    if not resp.choices:
+        raise RuntimeError("provider returned a response with no choices")
     choice = resp.choices[0]
     usage = getattr(resp, "usage", None)
     return {
@@ -64,46 +71,73 @@ def read_records(path: Path) -> list[dict]:
     return records
 
 
-def _completed(path: Path) -> set[str]:
-    return {r["doc_id"] for r in read_records(path) if r["error"] is None}
+def _completed(path: Path, prompt: str, max_tokens: int) -> set[str]:
+    """Doc ids already done; refuses to mix results from a different prompt text or limit."""
+    records = read_records(path)
+    current = {"prompt_sha": prompt_fingerprint(prompt), "max_tokens": max_tokens}
+    for key, value in current.items():
+        # Records written before these keys existed carry no value and are accepted.
+        seen = {r[key] for r in records if r.get(key) is not None} - {value}
+        if seen:
+            raise SystemExit(
+                f"{path} holds results with {key}={sorted(seen)}, but this run uses {value}. "
+                "Delete or rename that file to start a fresh run."
+            )
+    return {r["doc_id"] for r in records if r.get("error") is None}
+
+
+def _end_with_newline(path: Path) -> None:
+    """Never glue a new record onto a partial line left by a killed run."""
+    if path.exists() and path.stat().st_size and not path.read_text().endswith("\n"):
+        with path.open("a") as out:
+            out.write("\n")
+
+
+def _extract_one(model: str, prompt: str, doc: Doc, max_tokens: int) -> dict:
+    start = time.perf_counter()
+    try:
+        result, error = _call(model, build_messages(prompt, doc.image_b64), max_tokens), None
+    except Exception as exc:  # provider errors vary; record them and let the caller decide
+        result, error = _NO_RESULT, f"{type(exc).__name__}: {exc}"
+    pred, status = parse_output(result["raw"])
+    return {
+        "doc_id": doc.doc_id,
+        "model": model,
+        "prompt": prompt,
+        "prompt_sha": prompt_fingerprint(prompt),
+        "max_tokens": max_tokens,
+        "gold": doc.gold.model_dump(),
+        "pred": pred,
+        "parse_status": status if error is None else "error",
+        "error": error,
+        "latency_s": round(time.perf_counter() - start, 2),
+        **result,
+    }
 
 
 def run(model: str, prompt: str, docs: Iterable[Doc], max_tokens: int = 512) -> Path:
     path = run_path(model, prompt)
     path.parent.mkdir(parents=True, exist_ok=True)
-    done = _completed(path)
+    _end_with_newline(path)
+    done = _completed(path, prompt, max_tokens)
     todo = [d for d in docs if d.doc_id not in done]
     print(f"{model} / {prompt}: {len(done)} done, {len(todo)} to go -> {path}", flush=True)
+    consecutive_errors = 0
     with path.open("a") as out:
-        if path.stat().st_size and not path.read_text().endswith("\n"):
-            out.write("\n")  # never glue a new record onto a partial line
         for i, doc in enumerate(todo, 1):
-            start = time.perf_counter()
-            messages = build_messages(prompt, doc.image_b64)
-            try:
-                result, error = _call(model, messages, max_tokens), None
-            except Exception as exc:  # provider errors vary; record and keep going
-                result, error = (
-                    {"raw": "", "finish_reason": None, "completion_tokens": None},
-                    (f"{type(exc).__name__}: {exc}"),
-                )
-            pred, status = parse_output(result["raw"])
-            record = {
-                "doc_id": doc.doc_id,
-                "model": model,
-                "prompt": prompt,
-                "gold": doc.gold.model_dump(),
-                "pred": pred,
-                "parse_status": status if error is None else "error",
-                "error": error,
-                "latency_s": round(time.perf_counter() - start, 2),
-                **result,
-            }
+            record = _extract_one(model, prompt, doc, max_tokens)
             out.write(json.dumps(record, ensure_ascii=False) + "\n")
             out.flush()
+            error = record["error"]
             print(
                 f"  [{i}/{len(todo)}] {doc.doc_id} {record['parse_status']} "
                 f"{record['latency_s']}s" + (f"  {error[:120]}" if error else ""),
                 flush=True,
             )
+            consecutive_errors = consecutive_errors + 1 if error else 0
+            if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
+                raise SystemExit(
+                    f"Stopped after {consecutive_errors} failed calls in a row. Check the model "
+                    f"name and the provider's API key. Last error: {error[:300]}"
+                )
     return path

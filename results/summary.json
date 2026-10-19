@@ -1,4 +1,42 @@
 {
+  "baseline_always_null": {
+    "n_docs": 50,
+    "macro_accuracy": 0.54,
+    "macro_accuracy_ci": [
+      0.505,
+      0.575
+    ],
+    "macro_f1": 0.0,
+    "macro_f1_ci": [
+      0.0,
+      0.0
+    ],
+    "hallucination_rate": 0.0,
+    "hallucination_rate_ci": [
+      0.0,
+      0.0
+    ],
+    "field_accuracy": {
+      "total_price": 0.06,
+      "subtotal_price": 0.38,
+      "tax_price": 0.6,
+      "service_price": 0.86,
+      "discount_price": 0.9,
+      "cash_price": 0.3,
+      "change_price": 0.38,
+      "credit_card_price": 0.84
+    },
+    "field_f1": {
+      "total_price": 0.0,
+      "subtotal_price": 0.0,
+      "tax_price": 0.0,
+      "service_price": 0.0,
+      "discount_price": 0.0,
+      "cash_price": 0.0,
+      "change_price": 0.0,
+      "credit_card_price": 0.0
+    }
+  },
   "runs": {
     "ollama_chat/gemma4:31b-cloud|v1": {
       "n_docs": 50,
@@ -13,6 +51,10 @@
         0.9739071782530934
       ],
       "hallucination_rate": 0.037037037037037035,
+      "hallucination_rate_ci": [
+        0.013824884792626729,
+        0.06513156458128608
+      ],
       "field_accuracy": {
         "total_price": 0.92,
         "subtotal_price": 0.96,
@@ -37,6 +79,7 @@
         "repaired": 50
       },
       "truncated": 0,
+      "unknown_keys": 0,
       "median_latency_s": 1.98
     },
     "ollama_chat/gemma4:31b-cloud|v2": {
@@ -52,6 +95,10 @@
         0.988023181418724
       ],
       "hallucination_rate": 0.018518518518518517,
+      "hallucination_rate_ci": [
+        0.0045045045045045045,
+        0.037209302325581395
+      ],
       "field_accuracy": {
         "total_price": 0.94,
         "subtotal_price": 0.96,
@@ -76,6 +123,7 @@
         "repaired": 50
       },
       "truncated": 0,
+      "unknown_keys": 0,
       "median_latency_s": 1.78
     },
     "ollama_chat/qwen2.5vl:3b|v1": {
@@ -91,6 +139,10 @@
         0.5866294058666519
       ],
       "hallucination_rate": 0.8796296296296297,
+      "hallucination_rate_ci": [
+        0.7972906074391223,
+        0.9495412844036697
+      ],
       "field_accuracy": {
         "total_price": 0.94,
         "subtotal_price": 0.62,
@@ -115,6 +167,7 @@
         "repaired": 50
       },
       "truncated": 0,
+      "unknown_keys": 0,
       "median_latency_s": 4.21
     },
     "ollama_chat/qwen2.5vl:3b|v2": {
@@ -130,6 +183,10 @@
         0.852023897733776
       ],
       "hallucination_rate": 0.23148148148148148,
+      "hallucination_rate_ci": [
+        0.14144955654101996,
+        0.32558406229997866
+      ],
       "field_accuracy": {
         "total_price": 0.94,
         "subtotal_price": 0.62,
@@ -155,6 +212,7 @@
         "ok": 31
       },
       "truncated": 0,
+      "unknown_keys": 0,
       "median_latency_s": 4.255
     }
   },

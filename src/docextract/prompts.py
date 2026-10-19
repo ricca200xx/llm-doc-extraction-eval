@@ -1,11 +1,16 @@
 """Two prompt versions, compared head to head on the same documents.
 
-v1 is the prompt most people write first. v2 changes three things: it states
-what each field means, it makes ``null`` the explicit answer for anything not
-printed, and it forbids computing a value from other numbers.
+v1 is the prompt most people write first: one user message listing the keys.
+v2 changes four things at once: a system message, a definition for each field,
+``null`` as the explicit answer for anything not printed, and a ban on computing
+or reusing numbers. A difference between them is the effect of the bundle; no
+ablation separates the four.
 """
 
 from __future__ import annotations
+
+import hashlib
+import json
 
 from .schema import FIELDS, Receipt
 
@@ -42,3 +47,9 @@ def build_messages(version: str, image_b64: str) -> list[dict]:
             {"role": "user", "content": [{"type": "text", "text": user}, image]},
         ]
     raise ValueError(f"unknown prompt version: {version!r} (expected 'v1' or 'v2')")
+
+
+def prompt_fingerprint(version: str) -> str:
+    """Short hash of the exact prompt text, stored with every result to detect edits."""
+    text = json.dumps(build_messages(version, ""), sort_keys=True)
+    return hashlib.sha256(text.encode()).hexdigest()[:12]

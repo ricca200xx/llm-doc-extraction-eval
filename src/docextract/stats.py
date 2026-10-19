@@ -20,6 +20,8 @@ def bootstrap_ci(
     """Percentile bootstrap CI of ``stat(doc_indices)`` over documents."""
     idx = np.random.default_rng(seed).integers(0, n_docs, size=(n_boot, n_docs))
     values = np.array([stat(row) for row in idx])
+    if np.isnan(values).all():  # e.g. F1 when no resample has a gold value or a prediction
+        return float("nan"), float("nan")
     lo, hi = np.nanpercentile(values, [100 * alpha / 2, 100 * (1 - alpha / 2)])
     return float(lo), float(hi)
 
