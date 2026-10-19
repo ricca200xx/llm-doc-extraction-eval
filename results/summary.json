@@ -1,0 +1,139 @@
+{
+  "runs": {
+    "ollama_chat/gemma4:31b-cloud|v1": {
+      "n_docs": 50,
+      "macro_accuracy": 0.9675,
+      "macro_accuracy_ci": [
+        0.9475,
+        0.985
+      ],
+      "macro_f1": 0.9322765438067478,
+      "macro_f1_ci": [
+        0.8741470447866515,
+        0.9739071782530934
+      ],
+      "hallucination_rate": 0.037037037037037035,
+      "field_accuracy": {
+        "total_price": 0.92,
+        "subtotal_price": 0.96,
+        "tax_price": 1.0,
+        "service_price": 0.98,
+        "discount_price": 0.92,
+        "cash_price": 0.96,
+        "change_price": 1.0,
+        "credit_card_price": 1.0
+      },
+      "field_f1": {
+        "total_price": 0.9484536082474226,
+        "subtotal_price": 0.967741935483871,
+        "tax_price": 1.0,
+        "service_price": 0.8571428571428571,
+        "discount_price": 0.7142857142857143,
+        "cash_price": 0.9705882352941176,
+        "change_price": 1.0,
+        "credit_card_price": 1.0
+      },
+      "parse_status": {
+        "repaired": 50
+      },
+      "truncated": 0,
+      "median_latency_s": 1.98
+    },
+    "ollama_chat/gemma4:31b-cloud|v2": {
+      "n_docs": 50,
+      "macro_accuracy": 0.9724999999999999,
+      "macro_accuracy_ci": [
+        0.95,
+        0.99
+      ],
+      "macro_f1": 0.9420316462206022,
+      "macro_f1_ci": [
+        0.8738208596981588,
+        0.988023181418724
+      ],
+      "hallucination_rate": 0.018518518518518517,
+      "field_accuracy": {
+        "total_price": 0.94,
+        "subtotal_price": 0.96,
+        "tax_price": 0.98,
+        "service_price": 0.98,
+        "discount_price": 0.96,
+        "cash_price": 0.96,
+        "change_price": 1.0,
+        "credit_card_price": 1.0
+      },
+      "field_f1": {
+        "total_price": 0.9574468085106383,
+        "subtotal_price": 0.967741935483871,
+        "tax_price": 0.95,
+        "service_price": 0.8571428571428571,
+        "discount_price": 0.8333333333333334,
+        "cash_price": 0.9705882352941176,
+        "change_price": 1.0,
+        "credit_card_price": 1.0
+      },
+      "parse_status": {
+        "repaired": 50
+      },
+      "truncated": 0,
+      "median_latency_s": 1.78
+    }
+  },
+  "comparisons": {
+    "ollama_chat/gemma4:31b-cloud": {
+      "n_docs": 50,
+      "macro_accuracy_diff": [
+        0.004999999999999893,
+        -0.007500000000000062,
+        0.020000000000000018
+      ],
+      "macro_f1_diff": [
+        0.009755102413854355,
+        -0.013430369482335211,
+        0.03968123240103708
+      ],
+      "fields": {
+        "total_price": {
+          "accuracy_diff": 0.019999999999999907,
+          "p": 1.0,
+          "p_holm": 1.0
+        },
+        "subtotal_price": {
+          "accuracy_diff": 0.0,
+          "p": 1.0,
+          "p_holm": 1.0
+        },
+        "tax_price": {
+          "accuracy_diff": -0.020000000000000018,
+          "p": 1.0,
+          "p_holm": 1.0
+        },
+        "service_price": {
+          "accuracy_diff": 0.0,
+          "p": 1.0,
+          "p_holm": 1.0
+        },
+        "discount_price": {
+          "accuracy_diff": 0.039999999999999925,
+          "p": 0.5,
+          "p_holm": 1.0
+        },
+        "cash_price": {
+          "accuracy_diff": 0.0,
+          "p": 1.0,
+          "p_holm": 1.0
+        },
+        "change_price": {
+          "accuracy_diff": 0.0,
+          "p": 1.0,
+          "p_holm": 1.0
+        },
+        "credit_card_price": {
+          "accuracy_diff": 0.0,
+          "p": 1.0,
+          "p_holm": 1.0
+        }
+      }
+    }
+  }
+}
