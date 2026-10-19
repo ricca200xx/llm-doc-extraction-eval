@@ -87,6 +87,10 @@ def _num(x: float | None) -> str:
     return "n/a" if x is None else f"{x:.1f}"
 
 
+def _p(p: float) -> str:
+    return "<0.001" if p < 0.001 else f"{p:.3f}"
+
+
 def _ci(ci: tuple[float, float]) -> str:
     return f"[{_pct(ci[0])}, {_pct(ci[1])}]"
 
@@ -129,7 +133,7 @@ def to_markdown(summaries: dict, comparisons: dict) -> str:
         ]
         for f, r in c["fields"].items():
             lines.append(
-                f"| {f} | {100 * r['accuracy_diff']:+.1f} | {r['p']:.3f} | {r['p_holm']:.3f} |"
+                f"| {f} | {100 * r['accuracy_diff']:+.1f} | {_p(r['p'])} | {_p(r['p_holm'])} |"
             )
     return "\n".join(lines) + "\n"
 
@@ -183,8 +187,8 @@ def plot(summaries: dict, path: Path) -> None:
         ax.set_title(model.split("/")[-1], color=ink, fontsize=11, loc="left")
         ax.set_xlim(x_min, 100)
         ax.set_yticks(range(len(rows)), [r.replace("_price", "") for r in rows], color=muted)
-        ax.get_yticklabels()[0].set_fontweight("bold")
-        ax.invert_yaxis()
+        for label in ax.get_yticklabels()[:1]:  # empty on shared-y panels after the first
+            label.set_fontweight("bold")
         ax.grid(axis="x", color=grid, lw=0.8)
         ax.set_axisbelow(True)
         ax.tick_params(colors=muted, length=0)
@@ -192,6 +196,7 @@ def plot(summaries: dict, path: Path) -> None:
         for side in ("top", "right", "left"):
             ax.spines[side].set_visible(False)
         ax.spines["bottom"].set_color(grid)
+    axes[0][0].invert_yaxis()  # once: the y axis is shared, a second call would undo it
     handles = [
         plt.Line2D([], [], marker="o", ls="", color=c, markersize=8, label=f"prompt {p}")
         for p, c in colors.items()
@@ -202,14 +207,14 @@ def plot(summaries: dict, path: Path) -> None:
     fig.legend(
         handles=handles,
         loc="upper left",
-        bbox_to_anchor=(0.0, 0.94),
+        bbox_to_anchor=(0.0, 0.95),
         ncol=2,
         frameon=False,
         labelcolor=muted,
         handletextpad=0.2,
         columnspacing=1.2,
     )
-    fig.tight_layout(rect=(0, 0, 1, 0.86))
+    fig.tight_layout(rect=(0, 0, 1, 0.89))
     fig.savefig(path, dpi=160, facecolor=surface)
     plt.close(fig)
 

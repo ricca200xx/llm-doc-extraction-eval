@@ -57,9 +57,16 @@ receipt image ──► prompt v1 / v2 ──► LiteLLM ──► raw text ─�
 
 ## Results
 
-50 receipts from the CORD-v2 test split, 8 fields each (400 field decisions per
-run, 184 with a gold value and 216 where the right answer is `null`). Full tables,
-including per-field McNemar and Holm-adjusted p-values, are in
+Two models on the same 50 receipts from the CORD-v2 test split, 8 fields each
+(400 field decisions per run: 184 with a gold value, 216 where the right answer
+is `null`):
+
+- `gemma4:31b-cloud`, a 31B vision model served by Ollama Cloud;
+- `qwen2.5vl:3b`, a 3B vision model running locally through Ollama on an Apple
+  M4 Pro laptop.
+
+Both go through the same LiteLLM call; only the model string differs. Full
+tables, including per-field McNemar and Holm-adjusted p-values, are in
 [`results/report.md`](results/report.md); raw outputs are in
 [`results/raw`](results/raw).
 
@@ -67,29 +74,40 @@ including per-field McNemar and Holm-adjusted p-values, are in
 |---|---|---:|---:|---:|---:|---:|---:|
 | `ollama_chat/gemma4:31b-cloud` | v1 | 50 | 96.8 [94.8, 98.5] | 93.2 [87.4, 97.4] | 3.7 | 0 / 50 / 0 | 2.0 |
 | `ollama_chat/gemma4:31b-cloud` | v2 | 50 | 97.2 [95.0, 99.0] | 94.2 [87.4, 98.8] | 1.9 | 0 / 50 / 0 | 1.8 |
+| `ollama_chat/qwen2.5vl:3b` | v1 | 50 | 49.5 [43.8, 55.8] | 54.4 [49.7, 58.7] | 88.0 | 0 / 50 / 0 | 4.2 |
+| `ollama_chat/qwen2.5vl:3b` | v2 | 50 | 86.0 [80.5, 91.0] | 78.9 [71.3, 85.2] | 23.1 | 31 / 19 / 0 | 4.3 |
 
-![Per-field accuracy, prompt v1 vs v2](results/chart.png)
+![Per-field accuracy, prompt v1 vs v2, for both models](results/chart.png)
 
 *Dots are exact-match accuracy per field. On the macro row the horizontal lines
 are 95% bootstrap confidence intervals over documents.*
 
 What the numbers say:
 
-- **Gemma 4 31B (Ollama Cloud) is already near the ceiling of this task.** Macro
-  accuracy is 96.8% with prompt v1 and 97.2% with v2.
-- **Prompt v2 did not measurably help.** The paired difference is +0.5 points of
-  macro accuracy (95% CI -0.8 to +2.0) and +1.0 point of macro F1 (-1.3 to +4.0).
-  No field changes significantly; the smallest raw McNemar p-value is 0.5. Reading
-  the point estimates alone would have suggested an improvement that the data
-  does not support.
-- **v2 trades hallucinations for misses.** Invented values on `null` fields drop
-  from 8 to 4 (of 216), but correct values drop from 179 to 177 (of 184): the
-  stricter "use null" rule also makes the model abstain on two fields it used to
-  get right.
-- **Every raw output needed the repair layer.** The model wrapped all 100
-  answers in markdown code fences, so a plain `json.loads` would have failed on
-  every one; the repair layer recovered all of them. No output was truncated.
-- **The remaining errors are mostly reading errors and label conventions**, not
+- **The prompt matters a lot for the small model and has no measurable effect
+  on the large one.** For Qwen 3B, v2 raises macro accuracy from 49.5% to 86.0%: a paired
+  difference of +36.5 points (95% CI +30.3 to +42.2), with 6 of 8 fields
+  significant after Holm correction (adjusted p ≤ 0.001). For Gemma 31B the
+  difference is +0.5 points (CI -0.8 to +2.0), and no field changes
+  significantly (smallest raw McNemar p = 0.5). Reading the Gemma point
+  estimates alone would suggest an improvement that the data does not support.
+- **The small model's v1 problem is hallucination, not reading.** With v1, Qwen
+  puts a value in 190 of the 216 fields that should be `null`: 146 of them are
+  `"0"` and 21 are a copy of the total. v2 cuts that to 50, while correct values
+  go from 172 to 178 of 184. Macro F1, which ignores correct abstentions, rises from 54.4% to 78.9%.
+- **Some rules do not stick.** v2 forbids reusing one printed number for two
+  fields, yet Qwen still fills `subtotal_price` on all 19 receipts where CORD has
+  no subtotal, 15 of them with an exact copy of the total. That field stays at
+  62% under both prompts.
+- **For the large model, v2 trades hallucinations for misses.** Invented values
+  drop from 8 to 4, but correct values drop from 179 to 177: the stricter
+  "use null" rule also makes Gemma abstain on two fields it used to get right.
+- **The repair layer is not optional.** Gemma wrapped all 100 answers in
+  markdown code fences, Qwen 50 of 50 with v1 and 19 of 50 with v2. A plain
+  `json.loads` fails on 169 of the 200 outputs; the repair layer recovered all
+  of them. No output was truncated in these runs; that path is covered by the
+  unit tests.
+- **Gemma's remaining errors are reading errors and label conventions**, not
   format problems: `377,859` read as `377,059`, and totals reported for receipts
   where CORD labels the same printed amount as a subtotal (see Limitations).
 
@@ -157,6 +175,10 @@ results/       raw model outputs (JSONL), report.md, summary.json, chart.png
   that reports it as `total` is scored as hallucinating a total; in
   `cord-test-039` a card payment is labelled but no total is. I did not relabel
   anything, to avoid tuning the benchmark to the models.
+- **`"0"` for an unprinted field counts as a hallucination.** CORD labels a
+  printed `0` (for example a change of 0) as a value, so "0" and "not printed"
+  are different answers. A scorer that mapped `"0"` to `null` would rate Qwen
+  with prompt v1 much higher; most of its v1 errors are zeros.
 - **Number canonicalisation is a choice.** The sign is ignored (`-60.000` and
   `60.000` match, because CORD writes discounts both ways), and one or two digits
   after the last separator are read as decimals while three are a thousands group.
@@ -168,7 +190,8 @@ results/       raw model outputs (JSONL), report.md, summary.json, chart.png
   is a test of the rules it adds, not the best prompt for either model.
 - **Hosted model versions can change.** `gemma4:31b-cloud` is served by Ollama
   Cloud; the same tag may point to different weights later. The local model is
-  the Q4 build from the Ollama library, run on an Apple M4 Pro (48 GB).
+  the default quantised `qwen2.5vl:3b` build from the Ollama library, run on an
+  Apple M4 Pro (48 GB).
 - **Failed calls.** A call that still fails after retries is scored as an empty
   prediction. In the committed runs every call eventually succeeded; two early
   attempts that failed are kept in the JSONL for the record and superseded by
